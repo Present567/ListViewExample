@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="profile_imageView" type="id" />
+    <item name="content_texview" type="id" />
+    <item name="my_listView" type="id" />
+</resources>
