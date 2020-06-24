@@ -111,8 +111,7 @@ Firebase
     // Add the following line:
     classpath 'com.google.gms:google-services:4.2.0'  // Google Services plugin
   }
-}
-   </code>
+}  </code>
 </pre>  
     
 4. 앱에 Firebase SDK 추가합니다. 
@@ -120,12 +119,7 @@ Firebase
    <pre>
     <code>
    dependencies {
- // ...
  implementation 'com.google.firebase:firebase-core:17.0.0'
-
- // Getting a "Could not find" error? Make sure that you've added
- // Google's Maven repository to your root-level build.gradle file
-}
    </code>
 </pre>
 
