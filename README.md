@@ -481,7 +481,7 @@ MemberInitActivity //입력받은 회원정보를 데이터베이스에 저장
 
     }
 }
-
+```
 ### 게시판 글 작성
   
 WritePostActivity.java 
