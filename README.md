@@ -94,7 +94,40 @@ Firebase
 
 #### Firebase 연동 
   
-Firebase 사이트 접속하여 안드로이드 앱 과 연결한다 
+1. Firebase 사이트 접속하여 Firestore 프로젝트를 만듭니다.
+  
+2. Firebase에 앱을 등록 합니다. 
+   
+3. Firebase 구성 파일 추가 합니다. 
+    * Download google-services.json(google-services.json 다운로드)을 클릭하여 Firebase Android 구성 파일(google-services,json)을 가져옵니다.
+      
+    * 앱에서 Firebase 제품을 사용할 수 있도록 google-service 플러그인을 Gradle 파일에 추가합니다. 
+       
+       <pre>
+    <code>
+    dependencies {
+    // ...
+
+    // Add the following line:
+    classpath 'com.google.gms:google-services:4.2.0'  // Google Services plugin
+  }
+}
+   </code>
+</pre>  
+    
+4. 앱에 Firebase SDK 추가합니다. 
+   
+   <pre>
+    <code>
+   dependencies {
+ // ...
+ implementation 'com.google.firebase:firebase-core:17.0.0'
+
+ // Getting a "Could not find" error? Make sure that you've added
+ // Google's Maven repository to your root-level build.gradle file
+}
+   </code>
+</pre>
 
 
 3.기능 구현
