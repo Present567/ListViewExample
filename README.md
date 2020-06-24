@@ -118,6 +118,259 @@ dependencies {
 3.기능 구현
 =============  
 
+### 게시판 글 작성
+  
+WritePostActivity.java 
+  
+게시판 작성 
+     
+```
+ View.OnClickListener onClickListener = new View.OnClickListener() { // 게시판 확인 버튼 클릭 시 게시물 등록 시작 
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()) {
+                case R.id.check:
+                    storageUpload(univ,address);  // 게시물 확인 버튼 클릭시 대학교와 주소 서버에 등록
+                    break;
+                case R.id.image: // 이미지 버튼 클릭 시 사용자 앨범 권한 승인 여부 검사 
+                    if (ContextCompat.checkSelfPermission(WritePostActivity.this,
+                            Manifest.permission.READ_EXTERNAL_STORAGE)
+                            != PackageManager.PERMISSION_GRANTED) {
+
+                        if (ActivityCompat.shouldShowRequestPermissionRationale(WritePostActivity.this,
+                                Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                            ActivityCompat.requestPermissions(WritePostActivity.this,
+                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                                    1);
+                        } else {  // 권한 승언 실패시 다시 승인 여부 검사 
+                            ActivityCompat.requestPermissions(WritePostActivity.this,
+                                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                                    1);
+                            showToast(WritePostActivity.this, "권한을 허용해주세요."); 
+                        }
+                    } else {
+                        myStartActivity(GalleryActivity.class, "image", 0);
+                    }
+                    break;
+                case R.id.video: // 동영상 클릭 
+                    myStartActivity(GalleryActivity.class, "video", 0);
+                    break;
+                case R.id.buttonsBackgroundLayout:
+                    if (buttonBackgroundLayout.getVisibility() == View.VISIBLE) {
+                        buttonBackgroundLayout.setVisibility(View.GONE);
+                    }
+                    break;
+                case R.id.imageModify: // 등록한 사진 수정 
+                    myStartActivity(GalleryActivity.class, "image", 1);
+                    buttonBackgroundLayout.setVisibility(View.GONE);
+                    break;
+                case R.id.videoModify: // 등록한 동영상 수정 
+                    myStartActivity(GalleryActivity.class, "video", 1);
+                    buttonBackgroundLayout.setVisibility(View.GONE);
+                    break;
+                case R.id.delete: // 등록한 사진 및 영상 삭제 
+                    final View selectedView = (View)selectedImageView.getParent();
+                    String[] list = pathList.get(parent.indexOfChild(selectedView) - 1).split("\\?");
+                    String[] list2 = list[0].split("%2F");
+                    String name = list2[list2.length-1];
+
+                    StorageReference desertRef = storageRef.child("posts/"+ postinfo.getId() +"/"+name);
+                    desertRef.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void aVoid) {
+                            showToast(WritePostActivity.this, "파일을 삭제 하였습니다.");
+                            pathList.remove(parent.indexOfChild(selectedView) - 1);
+                            parent.removeView(selectedView); //  선택한 파일 삭제 
+                            buttonBackgroundLayout.setVisibility(View.GONE);
+                        }
+                    }).addOnFailureListener(new OnFailureListener() { // 파일 삭제 실패시 실패 메세지 출력 
+                        @Override
+                        public void onFailure(@NonNull Exception exception) {
+                            showToast(WritePostActivity.this, "파일을 삭제하는데 실패하였습니다.");
+                        }
+                    });
+
+                    break;
+                case R.id.gpsLayout: // 주소 칸 더블 클릭 시 자동으로 현재 위치 저장
+                    checkLocationPermission();
+                    break;
+                case R.id.geoLayout: // 주소 변환 칸 더블 클릭 시 자동으로 변환된 주소 데이터 저장 
+                    LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                    lm.removeUpdates(locationListener);
+                    getLocation(latitude, longitude);
+                    break;
+            }
+        }
+    };
+
+```
+   
+위치 서비스 권한 및 주소 자동 계산 
+   
+```
+
+    private LocationListener locationListener = new LocationListener() { // 주소칸 더블 클릭시 현재 위치 자동으로 계산되어 저장 
+        @Override
+        public void onLocationChanged(Location location) {
+
+            longitude = location.getLongitude(); // 경도 
+            latitude = location.getLatitude(); // 위도 
+            gpsLocation.setText(longitude + "/" + latitude);
+        }
+         private void checkLocationPermission() { // 위치 서비스 권한 승인 여부 검사 
+        int checkPermission = ActivityCompat.checkSelfPermission(WritePostActivity.this, Manifest.permission.ACCESS_FINE_LOCATION);
+        if (checkPermission == PackageManager.PERMISSION_GRANTED) { 
+            LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 100, 1, locationListener);
+        } else {
+            ActivityCompat.requestPermissions(WritePostActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
+        }
+    }
+
+    private String getLocation(Double latitude, Double longitude) { // 위치 서비스 권한 승인 완료 시 위도 경도 계산 하여 한글로 변환하여 저장 
+        String[] addressString = null;
+
+        Geocoder geocoder = new Geocoder(this, Locale.KOREA);
+        try {
+            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+            if (addresses.size() > 0) {
+                addressString = addresses.get(0).toString().split(",");
+                address = addressString[0].substring(addressString[0].indexOf("\"") + 1, addressString[0].length() - 2);
+
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        geoLocation.setText(address);
+        return address;
+    }
+```
+    
+게시판을 작성 후 게시판에 등록
+   
+```
+private String getUniv() { // 회원정보에 등록한 대학교 받아오기
+        tempID = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        db.collection("users").document(tempID)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                        if (task.isSuccessful()) {
+                            DocumentSnapshot document = task.getResult();
+                            if (document.exists()) {
+                                Log.d(TAG, "DocumentSnapshot data: " + document.getData());
+                                univ = document.get("univ").toString();
+                                Log.d(TAG, "" + univ);
+                            } else {
+                                Log.d(TAG, "No such document");
+                            }
+                        }
+
+                    }
+                });
+        return univ;
+    }
+
+    private void storageUpload(String univ,String address) { // 작성한 게시글 게시판에 등록하기 
+        final String title = ((EditText) findViewById(R.id.titleEditText)).getText().toString();
+
+        if (title.length() > 0) { // 제목 작성 완료 후 
+            loaderLayout.setVisibility(View.VISIBLE);
+            final ArrayList<String> contentsList = new ArrayList<>();
+            user = FirebaseAuth.getInstance().getCurrentUser();
+            tempID = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            this.univ=univ;
+            tempaddress=address;
+            FirebaseStorage storage = FirebaseStorage.getInstance(); // 파이어베이스 스토리지 연결 
+            StorageReference storageRef = storage.getReference();
+            FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
+            final DocumentReference documentReference = firebaseFirestore.collection(this.univ).document(); //대학 별 따라 데이터 따로 저장 
+            final Date date = postinfo == null ? new Date() : postinfo.getCreatedAt(); 
+
+            for (int i = 0; i < parent.getChildCount(); i++) {
+                LinearLayout linearLayout = (LinearLayout) parent.getChildAt(i);
+                for (int ii = 0; ii < linearLayout.getChildCount(); ii++) {
+                    View view = linearLayout.getChildAt(ii);
+
+                    if (view instanceof EditText) { 
+                        String text = ((EditText) view).getText().toString();
+                        if (text.length() > 0) {
+                            contentsList.add(text);
+                        }
+                    } else if(!Patterns.WEB_URL.matcher(pathList.get(pathCount)).matches()){
+                        String path = pathList.get(pathCount);
+                        successCount++;
+                        contentsList.add(path);
+                        String[] pathArray = path.split("\\.");
+                        final StorageReference mountainImagesRef = storageRef.child("posts/" + documentReference.getId() + "/" + pathCount + "." + pathArray[pathArray.length - 1]);
+
+                        try {
+                            InputStream stream = new FileInputStream(new File(pathList.get(pathCount)));
+                            StorageMetadata metadata = new StorageMetadata.Builder().setCustomMetadata("index", "" + (contentsList.size() - 1)).build();
+                            UploadTask uploadTask = mountainImagesRef.putStream(stream, metadata);
+                            uploadTask.addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception exception) {
+
+                                }
+                            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                @Override
+                                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                    final int index = Integer.parseInt(taskSnapshot.getMetadata().getCustomMetadata("index"));
+                                    mountainImagesRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                        @Override
+                                        public void onSuccess(Uri uri) {
+                                            successCount--;
+                                            contentsList.set(index, uri.toString());
+                                            if (successCount==0) {
+                                                //게시글 작성 완료
+                                                Postinfo postinfo = new Postinfo(title, contentsList, user.getUid(), date, tempaddress);
+                                                storeUpload(documentReference, postinfo);
+                                                startToast("게시물이 등록되었습니다."); // 게시글 등록 완료.
+                                            }
+
+                                        }
+                                    });
+                                }
+                            });
+                        } catch (FileNotFoundException e) {
+                            Log.e("로그", "에러: " + e.toString());
+                        }
+                        pathCount++;
+                    }
+                }
+            }
+            if (successCount==0) {  //이미지가 추가 될때마다 추가가 됨
+                storeUpload(documentReference, new Postinfo(title, contentsList, user.getUid(), date, address));
+            }
+
+        } else { // 제목을 작성하지 않았을때, 작성이 필요하다고 경고하는 메세지
+            startToast("내용을 작성해주세요.");
+        }
+    }
+
+    private void storeUpload(DocumentReference documentReference, Postinfo postinfo) {
+        documentReference.set(postinfo.getPostinfo())
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) { // 등록 성공 시 종료 
+                        Log.e(TAG, "DocumentSnapshot successfully written");
+                        loaderLayout.setVisibility(View.GONE);
+                        finish();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() { // 등록 실패 
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, " Error writing document.", e);
+                        loaderLayout.setVisibility(View.GONE);
+                    }
+                });
+
+    }
+```
+
 
 4.차별성 
 =============   
