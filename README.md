@@ -102,20 +102,14 @@ Firebase
     * Download google-services.json(google-services.json 다운로드)을 클릭하여 Firebase Android 구성 파일(google-services,json)을 가져옵니다.
       
     * 앱에서 Firebase 제품을 사용할 수 있도록 google-service 플러그인을 Gradle 파일에 추가합니다. 
-       
        <pre>
     <code>
     dependencies {
-    // ...
-
-    // Add the following line:
     classpath 'com.google.gms:google-services:4.2.0'  // Google Services plugin
-  }
-}  </code>
+  } </code>
 </pre>  
     
 4. 앱에 Firebase SDK 추가합니다. 
-   
    <pre>
     <code>
    dependencies {
