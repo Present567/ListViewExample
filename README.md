@@ -117,6 +117,370 @@ dependencies {
 
 3.기능 구현
 =============  
+  
+#### 1. Activity
+|Activity|기능|
+|------|---|
+|MainActivity|작성된 게시판 불러와서 출력|
+|LoginActivity|로그인 처리|
+|SignUpActivity|회원 가입 처리|
+|VerifiedActivity|이메일 인증 처리|
+|MemberInfo|입력받은 회원 정보 처리|
+|MemberInitActivity|회원 정보 데이터베이스에 저장|
+|PostActivity|게시판 출력 형태 처리|
+|WritePostActivity|글 작성|
+|GalleryActivity|사진,동영상 처리|
+
+
+#### 2. 회원가입/ 로그인/ 이메일인증
+    
+    
+    
+회원가입 SignUpActivity
+```
+public class SignUpActivity extends AppCompatActivity {
+    private static final String TAG = "SignUpActivity";
+    private FirebaseAuth mAuth;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_sign_up);
+
+
+        mAuth = FirebaseAuth.getInstance();
+
+        findViewById(R.id.signUpButton).setOnClickListener(onClickListener); 
+        findViewById(R.id.gotoLoginButton).setOnClickListener(onClickListener);
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        moveTaskToBack(true);
+        android.os.Process.killProcess(android.os.Process.myPid());
+        System.exit(1); //어플 종료
+    }
+
+    View.OnClickListener onClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()){
+                case R.id.signUpButton://회원가입 리스터
+                    signUp();
+                    break;
+                case R.id.gotoLoginButton:// 로그인 화면으로 전환 리스너
+                    startLoginActivity(); //화면 전환
+                    break;
+            }
+        }
+    };
+
+    private void signUp() {
+        String email = ((EditText)findViewById(R.id.emailEditText)).getText().toString();
+        String password = ((EditText)findViewById(R.id.passwordEditText)).getText().toString();
+        String passwordCheck = ((EditText)findViewById(R.id.passwordCheckEditText)).getText().toString();  //입력한 정보 읽어오기
+        
+        if(email.length() > 0 && password.length() > 0 && passwordCheck.length() > 0){
+            if(password.equals(passwordCheck)){ //password, passwordCheck 똑같을때
+
+                mAuth.createUserWithEmailAndPassword(email, password) //생성
+                        .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                            @Override
+                            public void onComplete(@NonNull Task<AuthResult> task) {
+                                if (task.isSuccessful()) {
+                                    FirebaseUser user = mAuth.getCurrentUser();
+                                    startToast("회원가입에 성공하였습니다.");
+                                    startLoginActivity(); 
+                                } else {
+                                    if(task.getException() != null){
+                                        startToast(task.getException().toString()); //에러
+                                    }
+                                }
+                            }
+                        });
+            }else{
+                startToast("비밀번호가 일치하지 않습니다.");
+            }
+        }else {
+            startToast("이메일 또는 비밀번호를 입력해 주세요.");
+        }
+    }
+
+    private void startToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+    private void startLoginActivity() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+    }
+
+
+}
+```
+
+
+
+LoginActivity
+```
+    private FirebaseAuth mAuth;
+    private AdView mAdView;
+
+   @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_login);
+
+        // Initialize Firebase Auth
+        mAuth = FirebaseAuth.getInstance(); 
+
+        findViewById(R.id.loginButton).setOnClickListener(onClickListener);
+        mAdView = findViewById(R.id.adView);// 배너 광고 호출
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
+    }
+        @Override
+    public void onStart() {
+        super.onStart();
+        
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+    }
+    
+    //버튼 리스너
+    
+    View.OnClickListener onClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()){
+                case R.id.loginButton:
+                    Login(); //Login 함수 호출
+                    break;
+            }
+        }
+    };
+
+    
+    
+     private void Login() {
+        String email = ((EditText)findViewById(R.id.emailEditText)).getText().toString(); 
+        String password = ((EditText)findViewById(R.id.passwordEditText)).getText().toString(); //이메일, 비밀번호를 읽어옴
+
+        if(email.length() > 0 && password.length() > 0){ 
+            mAuth.signInWithEmailAndPassword(email, password)//유효하다면
+                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                        @Override
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            if (task.isSuccessful()) {
+                                startToast("로그인에 성공하였습니다.");
+                                startVerifiedActivity(); //로그인 성공시 이메일 인증 Activity로 이동
+                            } else {
+                                if(task.getException() != null){
+                                    startToast(task.getException().toString()); // 에러처리
+                                }
+                            }
+                        }
+                    });
+        }else {
+            startToast("이메일 또는 비밀번호를 입력해 주세요.");
+        }
+    }
+        private void startToast(String msg) { //핸드폰에 출력
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+
+    private void startVerifiedActivity() {
+        Intent intent = new Intent(this, VerifiedActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent); //인증 화면으로 전환하면서 초기화
+    }
+```
+    VerifiedActivity// 이메일 인증을 위한 액티비티
+ 
+```
+ public class VerifiedActivity extends AppCompatActivity {
+    private FirebaseAuth mAuth;
+    TextView textView;
+    EditText editEmailText;
+    Button EmailButton;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_verified);
+        mAuth = FirebaseAuth.getInstance();
+        EmailButton=findViewById(R.id.emailVerifiedButton);
+        textView = (TextView) findViewById(R.id.emailVerifiedEditText);
+        editEmailText=(EditText)findViewById(R.id.emailEditText);
+        findViewById(R.id.reloginButton).setOnClickListener(onClickListener); 
+        verified();//인증 클래스 호출
+    }
+
+    View.OnClickListener onClickListener = new View.OnClickListener() { //리스너
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()){
+                case R.id.reloginButton:
+                    startLoginActivity(); //Login 액티비티로 전환
+                    break;
+            }
+        }
+    };
+    private void verified() {
+        final FirebaseUser user = mAuth.getCurrentUser();
+
+        if (user.isEmailVerified()) { //이메일 인증 완료시 회원 정보 입력 액티비티로 전환
+            startToast("인증에 성공하였습니다.");
+            startMemberActivity();
+
+        } else {
+            textView.setText("이메일이 인증되지 않았습니다.");
+            EmailButton.setOnClickListener(new View.OnClickListener() { //클릭리스너에서
+                @Override
+                public void onClick(View view) {//누르면
+                    user.sendEmailVerification().addOnCompleteListener(new OnCompleteListener<Void>() {
+                        @Override
+                        public void onComplete(@NonNull Task<Void> task) {// 인증 이메일 발송
+                            Toast.makeText(VerifiedActivity.this, "인증이메일이 발송되었습니다.", Toast.LENGTH_SHORT).show();
+                            editEmailText.setText("이메일을 통한 인증 후 다시 로그인해주세요."); 
+                        }
+                    });
+                }
+            });
+        }
+    }
+    private void startToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+    private void startMemberActivity() {
+        Intent intent = new Intent(this, MemberInitActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);//회원정보 입력을 위한 액티비티로 이동
+    }
+    private void startLoginActivity() {
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent); //로그인 액티비티로 
+    }
+};
+```
+#### 2. 입력받은 회원 데이터베이스 저장
+MemberInitActivity //입력받은 회원정보를 데이터베이스에 저장
+```
+    private static final String TAG = "MemberInitActivity";
+    EditText univTemp;
+    EditText phoneTemp; //변수 선언
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_member_init);
+        check(); //check 함수 호출
+        univTemp=(EditText)findViewById(R.id.univEditText);
+        phoneTemp=(EditText)findViewById(R.id.phoneNumberEditText);
+        findViewById(R.id.checkButton).setOnClickListener(onClickListener);
+        findViewById(R.id.univEditText).setOnClickListener(onClickListener);
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        finish();
+    }
+    View.OnClickListener onClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()){
+                case R.id.checkButton:
+                    profileUpdate();
+                    break;
+                case R.id.univEditText:
+                    univUpdate();
+                    break;
+            }
+        }
+    };
+
+    private void check(){
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        String user=firebaseUser.getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("users").document(user).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if(task.isSuccessful()){
+                    DocumentSnapshot document=task.getResult();
+                    if(document.exists()){
+                        startToast("게시판으로 이동합니다.");
+                        myStartActivity(MainActivity.class);
+                    }
+                }
+            }
+        });
+
+    }
+
+    private void profileUpdate() {
+        String univ = ((EditText)findViewById(R.id.univEditText)).getText().toString();
+        String name = ((EditText)findViewById(R.id.nameEditText)).getText().toString();
+        String phoneNumber = ((EditText)findViewById(R.id.phoneNumberEditText)).getText().toString();
+        String birthDay = ((EditText)findViewById(R.id.birthDayEditText)).getText().toString();
+        String address = ((EditText)findViewById(R.id.addressEditText)).getText().toString();
+
+        if(name.length() > 0 && phoneNumber.length() > 9 && birthDay.length() > 5 && address.length() > 0){
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            MemberInfo memberInfo = new MemberInfo(univ,name, phoneNumber, birthDay, address);
+            if(user != null){
+                db.collection("users").document(user.getUid()).set(memberInfo)
+                        .addOnSuccessListener(new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void aVoid) {
+                                startToast("회원정보 등록을 성공하였습니다.");
+                                startToast("게시판으로 이동합니다.");
+                                myStartActivity(MainActivity.class);
+                            }
+                        })
+                        .addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception e) {
+                                startToast("회원정보 등록에 실패하였습니다.");
+                                Log.w(TAG, "작성 실패", e);
+                            }
+                        });
+            }
+
+        }else {
+            startToast("회원정보를 입력해주세요.");
+        }
+    }
+    private void univUpdate(){
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("대학교를 입력하세요.");
+
+        builder.setItems(R.array.LAN, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                String[] items = getResources().getStringArray(R.array.LAN);
+                Toast.makeText(getApplicationContext(),items[i],Toast.LENGTH_LONG).show();
+                univTemp.setText(items[i]);
+
+            }
+        });
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+    }
+    private void startToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+    private void myStartActivity(Class c) {
+        Intent intent = new Intent(this, c);
+        startActivityForResult(intent, 1);
+
+    }
+}
 
 ### 게시판 글 작성
   
